@@ -160,3 +160,6 @@ aside.side .help { font-size: .8rem; color: var(--muted); line-height: 1.5; marg
 .modal.preview .box { max-width: 1140px; background: var(--bg); }
 .preview .lockinfo { font-size: .78rem; color: var(--danger); font-weight: 700; margin: -8px 0 14px 22px; }
 @media (max-width: 800px) { aside.side { display: none; } .brand h1 { font-size: 1.4rem; } }
+
+.site-version { font-size: .7rem; font-weight: 600; color: var(--muted); opacity: .6; }
+footer.v .site-version { margin-top: 6px; }

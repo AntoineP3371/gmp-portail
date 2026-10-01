@@ -7,12 +7,12 @@
 <script>(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="icon" type="image/png" href="favicon.png">
 <title>Administration du portail</title>
-<link rel="stylesheet" href="style.css?v=20261002">
+<link rel="stylesheet" href="style.css?v=0.1">
 </head>
 <body class="admin">
 
 <div class="bar">
-  <img src="petitgmp.png" alt="" onerror="this.style.display='none'"><h1>Administration du portail</h1>
+  <img src="petitgmp.png" alt="" onerror="this.style.display='none'"><h1>Administration du portail <small class="site-version">v0.1</small></h1>
   <span class="status" id="status">Enregistré ✓</span>
   <button class="theme-toggle" id="themeToggle" aria-label="Thème clair ou sombre" title="Thème clair / sombre">🌙</button>
   <button class="btn ghost" id="bPreview">👁 Aperçu</button>
@@ -111,8 +111,8 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-<script src="config.js?v=20261002"></script>
-<script src="portail.js?v=20261002"></script>
+<script src="config.js?v=0.1"></script>
+<script src="portail.js?v=0.1"></script>
 <script>
 (function () {
   const P = window.Portail, esc = P.esc, $ = (s) => document.querySelector(s);
