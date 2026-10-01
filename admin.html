@@ -265,7 +265,7 @@
     $("#pvTitle").textContent = cfg.title;
     $("#pvBody").innerHTML = cfg.groups.filter((g) => g.active !== false).map((g) => `<section class="vgroup" style="--gc:${P.okColor(g.color)}">
       <h2 class="vgroup-title">${esc(g.name || "(sans nom)")}</h2>
-      <div class="lockinfo">${g.code ? "ðŸ”’ Visible avec le code : " + esc(g.code) : "AccÃ¨s libre"}</div>
+      <div class="lockinfo">${g.code ? "🔒 Visible avec le code : " + esc(g.code) : "Accès libre"}</div>
       <div class="grid">${g.cards.map((c) => P.cardHTML(c, g)).join("")}</div></section>`).join("");
     $("#pvBody").querySelectorAll("a.card").forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
     $("#preview").hidden = false;
