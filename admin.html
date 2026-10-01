@@ -107,9 +107,10 @@
       <div class="card-body"><h3>${esc(c.title || "Sans titre")}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ""}</div></div>`;
   }
   function groupHTML(g) {
-    return `<section class="g" data-gid="${g.id}" style="--gc:${P.okColor(g.color)}">
+    return `<section class="g${g.active === false ? " off" : ""}" data-gid="${g.id}" style="--gc:${P.okColor(g.color)}">
       <div class="g-head">
         <span class="ghandle" title="Glisser pour déplacer le groupe">⠿</span>
+        <label class="switch" title="Afficher ou masquer ce groupe sur la page"><input type="checkbox" data-f="active" ${g.active !== false ? "checked" : ""}><span class="slider"></span><b>${g.active !== false ? "Affiché" : "Masqué"}</b></label>
         <input class="g-name" data-f="name" value="${esc(g.name)}" placeholder="Nom du groupe">
         <div class="g-code" title="Code d'accès (vide = accès libre)"><span>🔑</span>
           <input data-f="code" value="${esc(g.code)}" placeholder="Aucun code = accès libre">
@@ -160,6 +161,7 @@
       const b = sec.querySelector(".badge"); b.className = "badge " + (g.code ? "lock" : "free"); b.textContent = g.code ? "🔒 Protégé par un code" : "Accès libre"; }
     else if (f === "color") { g.color = e.target.value; sec.style.setProperty("--gc", g.color); sec.querySelectorAll(".acard").forEach((c) => c.style.setProperty("--gc", g.color)); }
     else if (f === "autoOpen") g.autoOpen = e.target.checked;
+    else if (f === "active") { g.active = e.target.checked; sec.classList.toggle("off", !g.active); e.target.parentElement.querySelector("b").textContent = g.active ? "Affiché" : "Masqué"; }
     else g[f] = e.target.value;
     touch();
   });
@@ -174,7 +176,7 @@
     }
     const card = e.target.closest(".acard"); if (card) openPanel(card.dataset.cid);
   });
-  $("#bNewGroup").onclick = () => { cfg.groups.push({ id: P.uid(), name: "Nouveau groupe", code: "", color: COLORS[cfg.groups.length % COLORS.length], autoOpen: false, cards: [] }); touch(); render(); $("#groups").lastElementChild.scrollIntoView({ behavior: "smooth" }); };
+  $("#bNewGroup").onclick = () => { cfg.groups.push({ id: P.uid(), name: "Nouveau groupe", code: "", color: COLORS[cfg.groups.length % COLORS.length], autoOpen: false, active: true, cards: [] }); touch(); render(); $("#groups").lastElementChild.scrollIntoView({ behavior: "smooth" }); };
 
   // ---------- réglages de page ----------
   $("#sTitle").oninput = (e) => { cfg.title = e.target.value; touch(); };
@@ -230,7 +232,7 @@
   // ---------- aperçu ----------
   $("#bPreview").onclick = () => {
     $("#pvTitle").textContent = cfg.title;
-    $("#pvBody").innerHTML = cfg.groups.map((g) => `<section class="vgroup" style="--gc:${P.okColor(g.color)}">
+    $("#pvBody").innerHTML = cfg.groups.filter((g) => g.active !== false).map((g) => `<section class="vgroup" style="--gc:${P.okColor(g.color)}">
       <h2 class="vgroup-title">${esc(g.name || "(sans nom)")}</h2>
       <div class="lockinfo">${g.code ? "ðŸ”’ Visible avec le code : " + esc(g.code) : "AccÃ¨s libre"}</div>
       <div class="grid">${g.cards.map((c) => P.cardHTML(c, g)).join("")}</div></section>`).join("");

@@ -22,7 +22,7 @@
 
   function defaultConfig() {
     return { version: 1, title: "Nos applications", subtitle: "", requireCode: false,
-      groups: [{ id: uid(), name: "Accès libre", code: "", color: "#12284c", autoOpen: false, cards: [] }] };
+      groups: [{ id: uid(), name: "Accès libre", code: "", color: "#12284c", autoOpen: false, active: true, cards: [] }] };
   }
   function normalizeConfig(c) {
     const d = defaultConfig();
@@ -34,7 +34,7 @@
       requireCode: !!c.requireCode,
       groups: (Array.isArray(c.groups) ? c.groups : []).map((g) => ({
         id: g.id || uid(), name: g.name || "", code: String(g.code || "").replace(/\|/g, ""),
-        color: okColor(g.color), autoOpen: !!g.autoOpen,
+        color: okColor(g.color), autoOpen: !!g.autoOpen, active: g.active !== false,
         cards: (Array.isArray(g.cards) ? g.cards : []).map((k) => ({
           id: k.id || uid(), title: k.title || "", url: k.url || "", text: k.text || "",
           image: k.image || "", blank: k.blank !== false })),
@@ -48,6 +48,7 @@
     const valid = [];
     let groups = [];
     for (const g of cfg.groups) {
+      if (g.active === false) continue;
       const gc = norm(g.code);
       const out = { id: g.id, name: g.name, color: g.color, autoOpen: g.autoOpen, cards: g.cards };
       if (!gc) groups.push(out);
