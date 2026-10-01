@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Administration du portail</title>
+<link href="https://fonts.googleapis.com/css?family=Raleway:400,500,600,700|Montserrat:600,700,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="admin">
+
+<div class="bar">
+  <h1>Administration du portail</h1>
+  <span class="status" id="status">Enregistré ✓</span>
+  <button class="btn ghost" id="bPreview">👁 Aperçu</button>
+  <button class="btn ghost" id="bExport" title="Télécharger une copie de sauvegarde">⬇ Sauvegarde</button>
+  <button class="btn ghost" id="bImport" title="Restaurer une sauvegarde">⬆ Restaurer</button>
+  <a class="btn ghost" href="index.html" target="_blank">↗ Voir la page</a>
+  <button class="btn ghost" id="bLogout" hidden>Déconnexion</button>
+  <button class="btn primary" id="bSave" disabled>💾 Enregistrer</button>
+  <input type="file" id="fImport" accept=".json,application/json" hidden>
+</div>
+<div class="demo-banner" id="demo" hidden>⚠ Mode démo : PocketBase n'est pas encore relié (voir config.js). Vos modifications restent dans ce navigateur et les autres visiteurs ne les voient pas.</div>
+
+<div class="layout">
+  <aside class="side">
+    <h2>Ajouter</h2>
+    <div id="palette"><div class="card"><span>＋ Nouveau lien<br><small style="font-weight:500">glissez-le dans un groupe</small></span></div></div>
+    <button class="btn primary newgroup" id="bNewGroup" style="margin-top:10px;width:100%">＋ Nouveau groupe</button>
+
+    <h2>La page</h2>
+    <label for="sTitle">Titre</label><input type="text" id="sTitle">
+    <label for="sSub">Sous-titre (facultatif)</label><input type="text" id="sSub">
+    <label class="chk" style="margin-top:12px"><input type="checkbox" id="sReq"> <span>Page verrouillée : rien n'est visible tant qu'aucun code valide n'est saisi</span></label>
+
+    <h2>Mode d'emploi</h2>
+    <p class="help">• <b>Glissez</b> les liens pour les déplacer ou les passer d'un groupe à l'autre.<br>
+    • <b>Cliquez</b> sur un lien pour changer son adresse, son texte, son image.<br>
+    • <b>Glissez une image</b> depuis votre bureau sur un groupe : un lien est créé.<br>
+    • Groupe <b>sans code</b> = visible de tous. Groupe <b>avec code</b> = visible seulement de ceux qui saisissent ce code (plusieurs groupes peuvent partager un code).<br>
+    • Pensez à <b>Enregistrer</b> (Ctrl+S).</p>
+  </aside>
+  <div class="board"><div id="groups"></div></div>
+</div>
+
+<!-- Panneau d'édition d'un lien -->
+<div id="panel">
+  <h2>Modifier le lien</h2>
+  <label for="pTitle">Titre</label><input type="text" id="pTitle">
+  <label for="pUrl">Adresse du lien (https://…)</label><input type="text" id="pUrl" placeholder="https://gmpbordeaux.fr/…">
+  <label for="pText">Texte de description</label><textarea id="pText"></textarea>
+  <label>Image</label>
+  <div id="imgDrop"><div id="imgPrev"></div><span id="imgHint">Cliquez ou déposez une image ici</span></div>
+  <input type="file" id="fImg" accept="image/*" hidden>
+  <input type="text" id="pImgUrl" placeholder="… ou collez l'adresse d'une image" style="margin-top:8px">
+  <label class="chk" style="display:flex;gap:8px;font-weight:500"><input type="checkbox" id="pBlank"> Ouvrir dans un nouvel onglet</label>
+  <div class="row">
+    <button class="btn" id="pRmImg">Retirer l'image</button>
+    <button class="btn" id="pDup">Dupliquer</button>
+    <button class="btn danger" id="pDel">Supprimer</button>
+    <button class="btn primary" id="pClose" style="margin-left:auto">OK</button>
+  </div>
+</div>
+
+<!-- Connexion admin -->
+<div class="modal" id="login" hidden>
+  <form class="box" id="loginForm">
+    <h2>🔐 Connexion administrateur</h2>
+    <input type="text" id="lEmail" placeholder="E-mail PocketBase" autocomplete="username">
+    <input type="password" id="lPass" placeholder="Mot de passe" autocomplete="current-password">
+    <div class="err" id="lErr"></div>
+    <button class="btn primary" type="submit" style="width:100%">Se connecter</button>
+  </form>
+</div>
+
+<!-- Aperçu -->
+<div class="modal preview" id="preview" hidden>
+  <div class="box"><button class="btn primary" id="pvClose" style="float:right">Fermer l'aperçu</button><h2 id="pvTitle"></h2><div id="pvBody"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script src="config.js"></script>
+<script src="portail.js"></script>
+<script>
+(function () {
+  const P = window.Portail, esc = P.esc, $ = (s) => document.querySelector(s);
+  let cfg = null, dirty = false, sel = null, sortables = [];
+  const COLORS = ["#12284c", "#b0281c", "#15803d", "#b45309", "#6d28d9", "#0e7490", "#be185d"];
+
+  // ---------- état ----------
+  function setDirty(v) {
+    dirty = v;
+    $("#bSave").disabled = !v;
+    $("#status").textContent = v ? "● Modifications non enregistrées" : "Enregistré ✓";
+    $("#status").className = "status" + (v ? " dirty" : "");
+  }
+  const touch = () => setDirty(true);
+  const findCard = (id) => { for (const g of cfg.groups) { const i = g.cards.findIndex((c) => c.id === id); if (i >= 0) return { g, i, c: g.cards[i] }; } return null; };
+  const newCard = (over) => Object.assign({ id: P.uid(), title: "Nouveau lien", url: "", text: "", image: "", blank: true }, over || {});
+
+  // ---------- rendu ----------
+  function aCardHTML(c, g) {
+    const img = P.safeImg(c.image);
+    return `<div class="card acard${c.id === sel ? " sel" : ""}" data-cid="${c.id}" style="--gc:${P.okColor(g.color)}">
+      <div class="card-img">${img ? `<img src="${esc(img)}" alt="">` : `<span class="card-initial">${esc((c.title || "?").trim().charAt(0).toUpperCase())}</span>`}</div>
+      <div class="card-body"><h3>${esc(c.title || "Sans titre")}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ""}</div></div>`;
+  }
+  function groupHTML(g) {
+    return `<section class="g" data-gid="${g.id}" style="--gc:${P.okColor(g.color)}">
+      <div class="g-head">
+        <span class="ghandle" title="Glisser pour déplacer le groupe">⠿</span>
+        <input class="g-name" data-f="name" value="${esc(g.name)}" placeholder="Nom du groupe">
+        <div class="g-code" title="Code d'accès (vide = accès libre)"><span>🔑</span>
+          <input data-f="code" value="${esc(g.code)}" placeholder="Aucun code = accès libre">
+          <button data-act="gen" title="Générer un code">🎲</button></div>
+        <input type="color" data-f="color" value="${P.okColor(g.color)}" title="Couleur">
+        <button data-act="delg" title="Supprimer le groupe">🗑</button>
+      </div>
+      <div class="g-sub"><span class="badge ${g.code ? "lock" : "free"}">${g.code ? "🔒 Protégé par un code" : "Accès libre"}</span>
+        <label><input type="checkbox" data-f="autoOpen" ${g.autoOpen ? "checked" : ""}> Ouvrir directement le lien quand ce code est saisi (si un seul lien)</label></div>
+      <div class="g-cards" data-gid="${g.id}">${g.cards.map((c) => aCardHTML(c, g)).join("")}</div>
+      <button class="addc" data-act="addc">＋ Ajouter un lien</button>
+    </section>`;
+  }
+  function render() {
+    sortables.forEach((s) => s.destroy()); sortables = [];
+    $("#groups").innerHTML = cfg.groups.map(groupHTML).join("") || '<p style="color:#6b7280">Aucun groupe. Cliquez sur « Nouveau groupe ».</p>';
+    document.querySelectorAll(".g-cards").forEach((el) => {
+      sortables.push(Sortable.create(el, {
+        group: { name: "cards", pull: true, put: true }, animation: 150, ghostClass: "sortable-ghost",
+        onAdd(evt) { // depuis la palette : création d'un nouveau lien
+          if (evt.from.id !== "palette") return;
+          const gid = evt.to.dataset.gid, at = evt.newIndex;
+          evt.item.remove();
+          setTimeout(() => { const c = newCard(); cfg.groups.find((g) => g.id === gid).cards.splice(at, 0, c); touch(); render(); openPanel(c.id); }, 0);
+        },
+        onEnd(evt) { // déplacement d'un lien existant
+          if (evt.from.id === "palette") return;
+          const from = cfg.groups.find((g) => g.id === evt.from.dataset.gid), to = cfg.groups.find((g) => g.id === evt.to.dataset.gid);
+          if (!from || !to) return;
+          const [c] = from.cards.splice(evt.oldIndex, 1); to.cards.splice(evt.newIndex, 0, c);
+          touch(); setTimeout(render, 0);
+        },
+      }));
+    });
+    sortables.push(Sortable.create($("#groups"), {
+      handle: ".ghandle", draggable: ".g", animation: 150, ghostClass: "sortable-ghost",
+      onEnd(evt) { const [g] = cfg.groups.splice(evt.oldIndex, 1); cfg.groups.splice(evt.newIndex, 0, g); touch(); setTimeout(render, 0); },
+    }));
+  }
+  Sortable.create($("#palette"), { group: { name: "cards", pull: "clone", put: false }, sort: false, animation: 150 });
+
+  // ---------- groupes : saisie et boutons ----------
+  const gOf = (el) => cfg.groups.find((g) => g.id === el.closest(".g").dataset.gid);
+  $("#groups").addEventListener("input", (e) => {
+    const f = e.target.dataset.f; if (!f) return;
+    const g = gOf(e.target), sec = e.target.closest(".g");
+    if (f === "code") { e.target.value = e.target.value.replace(/\|/g, ""); g.code = e.target.value.trim();
+      const b = sec.querySelector(".badge"); b.className = "badge " + (g.code ? "lock" : "free"); b.textContent = g.code ? "🔒 Protégé par un code" : "Accès libre"; }
+    else if (f === "color") { g.color = e.target.value; sec.style.setProperty("--gc", g.color); sec.querySelectorAll(".acard").forEach((c) => c.style.setProperty("--gc", g.color)); }
+    else if (f === "autoOpen") g.autoOpen = e.target.checked;
+    else g[f] = e.target.value;
+    touch();
+  });
+  $("#groups").addEventListener("click", (e) => {
+    const act = e.target.closest("[data-act]");
+    if (act) {
+      const g = gOf(act);
+      if (act.dataset.act === "gen") { const a = "abcdefghjkmnpqrstuvwxyz23456789"; g.code = Array.from({ length: 6 }, () => a[Math.floor(Math.random() * a.length)]).join(""); touch(); render(); }
+      else if (act.dataset.act === "delg") { if (!g.cards.length || confirm("Supprimer le groupe « " + (g.name || "sans nom") + " » et ses " + g.cards.length + " lien(s) ?")) { cfg.groups = cfg.groups.filter((x) => x !== g); touch(); closePanel(); render(); } }
+      else if (act.dataset.act === "addc") { const c = newCard(); g.cards.push(c); touch(); render(); openPanel(c.id); }
+      return;
+    }
+    const card = e.target.closest(".acard"); if (card) openPanel(card.dataset.cid);
+  });
+  $("#bNewGroup").onclick = () => { cfg.groups.push({ id: P.uid(), name: "Nouveau groupe", code: "", color: COLORS[cfg.groups.length % COLORS.length], autoOpen: false, cards: [] }); touch(); render(); $("#groups").lastElementChild.scrollIntoView({ behavior: "smooth" }); };
+
+  // ---------- réglages de page ----------
+  $("#sTitle").oninput = (e) => { cfg.title = e.target.value; touch(); };
+  $("#sSub").oninput = (e) => { cfg.subtitle = e.target.value; touch(); };
+  $("#sReq").onchange = (e) => { cfg.requireCode = e.target.checked; touch(); };
+
+  // ---------- panneau d'édition d'un lien ----------
+  function refreshImg(c) {
+    const s = P.safeImg(c.image);
+    $("#imgPrev").innerHTML = s ? `<img src="${esc(s)}" alt="">` : "";
+    $("#imgHint").textContent = s ? "Cliquez ou déposez pour remplacer" : "Cliquez ou déposez une image ici";
+    $("#pImgUrl").value = /^data:/.test(c.image) ? "" : c.image;
+  }
+  function openPanel(id) {
+    const f = findCard(id); if (!f) return;
+    sel = id; const c = f.c;
+    $("#pTitle").value = c.title; $("#pUrl").value = c.url; $("#pText").value = c.text; $("#pBlank").checked = c.blank !== false;
+    refreshImg(c); $("#panel").classList.add("open");
+    document.querySelectorAll(".acard").forEach((el) => el.classList.toggle("sel", el.dataset.cid === id));
+  }
+  function closePanel() { sel = null; $("#panel").classList.remove("open"); document.querySelectorAll(".acard.sel").forEach((el) => el.classList.remove("sel")); }
+  const cur = () => (sel && findCard(sel) ? findCard(sel).c : null);
+  const bind = (id, key, ev) => { $(id).addEventListener(ev || "input", (e) => { const c = cur(); if (!c) return; c[key] = e.target.type === "checkbox" ? e.target.checked : e.target.value; touch(); render(); }); };
+  bind("#pTitle", "title"); bind("#pUrl", "url"); bind("#pText", "text"); bind("#pBlank", "blank", "change");
+  $("#pImgUrl").addEventListener("input", (e) => { const c = cur(); if (!c) return; c.image = e.target.value.trim(); touch(); render(); $("#imgPrev").innerHTML = P.safeImg(c.image) ? `<img src="${esc(P.safeImg(c.image))}" alt="">` : ""; });
+  $("#pClose").onclick = closePanel;
+  $("#pRmImg").onclick = () => { const c = cur(); if (c) { c.image = ""; touch(); render(); refreshImg(c); } };
+  $("#pDup").onclick = () => { const f = findCard(sel); if (!f) return; const c = Object.assign({}, f.c, { id: P.uid(), title: f.c.title + " (copie)" }); f.g.cards.splice(f.i + 1, 0, c); touch(); render(); openPanel(c.id); };
+  $("#pDel").onclick = () => { const f = findCard(sel); if (f && confirm("Supprimer ce lien ?")) { f.g.cards.splice(f.i, 1); touch(); closePanel(); render(); } };
+  async function setImageFrom(file) { if (!file || !file.type.startsWith("image/")) return; const c = cur(); if (!c) return; c.image = await P.imageFromFile(file); touch(); render(); refreshImg(c); }
+  $("#imgDrop").onclick = () => $("#fImg").click();
+  $("#fImg").onchange = (e) => { setImageFrom(e.target.files[0]); e.target.value = ""; };
+  $("#imgDrop").addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); $("#imgDrop").classList.add("over"); });
+  $("#imgDrop").addEventListener("dragleave", () => $("#imgDrop").classList.remove("over"));
+  $("#imgDrop").addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); $("#imgDrop").classList.remove("over"); setImageFrom(e.dataTransfer.files[0]); });
+
+  // ---------- dépôt d'images depuis le bureau sur un groupe ----------
+  const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  $("#groups").addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); const g = e.target.closest(".g"); document.querySelectorAll(".dropfile").forEach((x) => x !== g && x.classList.remove("dropfile")); if (g) g.classList.add("dropfile"); });
+  $("#groups").addEventListener("dragleave", (e) => { if (e.target.classList && e.target.classList.contains("g")) e.target.classList.remove("dropfile"); });
+  $("#groups").addEventListener("drop", async (e) => {
+    if (!hasFiles(e)) return; e.preventDefault();
+    const sec = e.target.closest(".g"); document.querySelectorAll(".dropfile").forEach((x) => x.classList.remove("dropfile")); if (!sec) return;
+    const g = cfg.groups.find((x) => x.id === sec.dataset.gid); let last = null;
+    for (const f of Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"))) {
+      last = newCard({ title: f.name.replace(/\.[^.]+$/, ""), image: await P.imageFromFile(f) }); g.cards.push(last);
+    }
+    if (last) { touch(); render(); openPanel(last.id); }
+  });
+  window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+  window.addEventListener("drop", (e) => { if (hasFiles(e)) e.preventDefault(); });
+
+  // ---------- aperçu ----------
+  $("#bPreview").onclick = () => {
+    $("#pvTitle").textContent = cfg.title;
+    $("#pvBody").innerHTML = cfg.groups.map((g) => `<section class="vgroup" style="--gc:${P.okColor(g.color)}">
+      <h2 class="vgroup-title">${esc(g.name || "(sans nom)")}</h2>
+      <div class="lockinfo">${g.code ? "ðŸ”’ Visible avec le code : " + esc(g.code) : "AccÃ¨s libre"}</div>
+      <div class="grid">${g.cards.map((c) => P.cardHTML(c, g)).join("")}</div></section>`).join("");
+    $("#pvBody").querySelectorAll("a.card").forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
+    $("#preview").hidden = false;
+  };
+  $("#pvClose").onclick = () => ($("#preview").hidden = true);
+
+  // ---------- sauvegarde / restauration ----------
+  async function doSave() {
+    if (!dirty) return;
+    $("#status").textContent = "Enregistrement…";
+    try { await P.save(cfg); setDirty(false); }
+    catch (e) { if (e.auth) { askLogin(); } else { alert("Échec de l'enregistrement : " + e.message); } setDirty(true); }
+  }
+  $("#bSave").onclick = doSave;
+  window.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); doSave(); } });
+  window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+  $("#bExport").onclick = () => {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(cfg, null, 1)], { type: "application/json" }));
+    a.download = "portail-sauvegarde-" + new Date().toISOString().slice(0, 10) + ".json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  $("#bImport").onclick = () => $("#fImport").click();
+  $("#fImport").onchange = async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try { const j = JSON.parse(await f.text()); if (!Array.isArray(j.groups)) throw 0;
+      if (!confirm("Remplacer la configuration actuelle par cette sauvegarde ? (rien n'est enregistré tant que vous ne cliquez pas sur Enregistrer)")) return;
+      cfg = P.normalizeConfig(j); closePanel(); fillSide(); render(); touch();
+    } catch (err) { alert("Ce fichier n'est pas une sauvegarde valide."); }
+  };
+
+  // ---------- connexion & démarrage ----------
+  function fillSide() { $("#sTitle").value = cfg.title; $("#sSub").value = cfg.subtitle; $("#sReq").checked = cfg.requireCode; }
+  function askLogin() { $("#login").hidden = false; $("#lEmail").focus(); }
+  $("#loginForm").onsubmit = async (e) => {
+    e.preventDefault(); $("#lErr").textContent = "";
+    try { await P.login($("#lEmail").value.trim(), $("#lPass").value); $("#lPass").value = ""; $("#login").hidden = true; if (!cfg) start(); else doSave(); }
+    catch (err) { $("#lErr").textContent = err.message; }
+  };
+  $("#bLogout").onclick = () => { P.logout(); location.reload(); };
+  async function start() {
+    try { cfg = await P.load(); }
+    catch (e) { if (e.auth) { P.logout(); askLogin(); } else alert("Chargement impossible : " + e.message); return; }
+    fillSide(); render(); setDirty(false);
+  }
+  $("#demo").hidden = !!P.PB; $("#bLogout").hidden = !P.PB;
+  if (!P.PB || P.hasToken()) start(); else askLogin();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portail des applications</title>
+<link href="https://fonts.googleapis.com/css?family=Raleway:400,500,600,700|Montserrat:600,700,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><h1 id="title">Portail</h1><p id="subtitle" hidden></p></header>
+
+<div class="codebar">
+  <span class="unlocked" id="unlocked" hidden></span>
+  <button class="linklike" id="forget" hidden>Oublier mes codes</button>
+  <form id="codeForm" autocomplete="off">
+    <input id="code" type="text" placeholder="🔑 Vous avez un code ?" aria-label="Code d'accès">
+    <button class="go" type="submit">Valider</button>
+  </form>
+  <span class="msg" id="msg"></span>
+</div>
+
+<main class="v" id="main"><div class="empty">Chargement…</div></main>
+<footer class="v"><a href="admin.html">Administration</a></footer>
+
+<script src="config.js"></script>
+<script src="portail.js"></script>
+<script>
+(function () {
+  const P = window.Portail, $ = (s) => document.querySelector(s);
+  const KEY = "portail_codes";
+  let codes = [];
+  try { codes = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) {}
+  const saveCodes = () => { try { localStorage.setItem(KEY, JSON.stringify(codes)); } catch (e) {} };
+
+  function show(data) {
+    document.title = data.title || "Portail";
+    $("#title").textContent = data.title || "Portail";
+    $("#subtitle").hidden = !data.subtitle; $("#subtitle").textContent = data.subtitle || "";
+    const total = data.groups.reduce((n, g) => n + g.cards.length, 0);
+    if (total) $("#main").innerHTML = P.groupsHTML(data.groups);
+    else $("#main").innerHTML = `<div class="empty">${data.requireCode ? "🔒 Saisissez votre code pour accéder aux applications." : "Aucune application pour le moment."}</div>`;
+    const n = (data.valid || []).length;
+    $("#unlocked").hidden = $("#forget").hidden = !n;
+    $("#unlocked").textContent = "🔓 " + n + " code" + (n > 1 ? "s" : "") + " actif" + (n > 1 ? "s" : "");
+  }
+
+  async function refresh(entered) {
+    $("#msg").textContent = "";
+    let data;
+    try { data = await P.view(codes.concat(entered ? [entered] : [])); }
+    catch (e) { $("#main").innerHTML = '<div class="empty">Impossible de joindre le serveur. Réessayez plus tard.</div>'; return; }
+    codes = codes.filter((c) => data.valid.includes(P.norm(c)));
+    if (entered) {
+      const n = P.norm(entered);
+      if (!data.valid.includes(n)) $("#msg").textContent = "Code inconnu.";
+      else {
+        if (!codes.map(P.norm).includes(n)) codes.push(entered.trim());
+        // Redirection directe : le code n'ouvre qu'un lien et le groupe l'autorise
+        const mine = data.groups.filter((g) => g.viaCode === n);
+        const cards = mine.flatMap((g) => g.cards);
+        if (mine.length && mine.every((g) => g.autoOpen) && cards.length === 1 && P.safeUrl(cards[0].url) !== "#") {
+          saveCodes(); location.href = P.safeUrl(cards[0].url); return;
+        }
+      }
+    }
+    saveCodes(); show(data);
+  }
+
+  $("#codeForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("#code").value.trim(); if (!v) return;
+    $("#code").value = ""; refresh(v);
+  });
+  $("#forget").addEventListener("click", () => { codes = []; saveCodes(); refresh(); });
+  refresh();
+})();
+</script>
+</body>
+</html>
