@@ -5,14 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="icon" type="image/png" href="favicon.png?v=0.3">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=0.3">
+<meta name="theme-color" content="#00aeef">
 <title>Administration du portail</title>
-<link rel="stylesheet" href="style.css?v=0.2">
+<link rel="stylesheet" href="style.css?v=0.3">
 </head>
 <body class="admin">
 
 <div class="bar">
-  <img src="petitgmp.png" alt="" onerror="this.style.display='none'"><h1>Administration du portail <small class="site-version">v0.2</small></h1>
+  <img src="petitgmp.png" alt="" onerror="this.style.display='none'"><h1>Administration du portail <small class="site-version">v0.3</small></h1>
   <span class="status" id="status">Enregistré ✓</span>
   <button class="theme-toggle" id="themeToggle" aria-label="Thème clair ou sombre" title="Thème clair / sombre">🌙</button>
   <button class="btn ghost" id="bPreview">👁 Aperçu</button>
@@ -122,9 +124,9 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-<script src="config.js?v=0.2"></script>
-<script src="icones.js?v=0.2"></script>
-<script src="portail.js?v=0.2"></script>
+<script src="config.js?v=0.3"></script>
+<script src="icones.js?v=0.3"></script>
+<script src="portail.js?v=0.3"></script>
 <script>
 (function () {
   const P = window.Portail, esc = P.esc, $ = (s) => document.querySelector(s);
