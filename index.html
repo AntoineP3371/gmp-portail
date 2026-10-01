@@ -6,7 +6,7 @@
 <script>(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="icon" type="image/png" href="favicon.png">
 <title>Portail des applications</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261002">
 </head>
 <body>
 <button id="themeToggle" class="theme-toggle fixed" aria-label="Basculer le thème clair ou sombre" title="Thème clair / sombre">🌙</button>
@@ -28,8 +28,8 @@
 <main class="v" id="main"><div class="empty">Chargement…</div></main>
 <footer class="v">Atelier GMP — IUT Bordeaux · <a href="admin.html">Administration</a></footer>
 
-<script src="config.js"></script>
-<script src="portail.js"></script>
+<script src="config.js?v=20261002"></script>
+<script src="portail.js?v=20261002"></script>
 <script>
 (function () {
   const P = window.Portail, $ = (s) => document.querySelector(s);
