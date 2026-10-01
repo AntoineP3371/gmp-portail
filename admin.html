@@ -7,12 +7,12 @@
 <script>(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="icon" type="image/png" href="favicon.png">
 <title>Administration du portail</title>
-<link rel="stylesheet" href="style.css?v=0.1">
+<link rel="stylesheet" href="style.css?v=0.2">
 </head>
 <body class="admin">
 
 <div class="bar">
-  <img src="petitgmp.png" alt="" onerror="this.style.display='none'"><h1>Administration du portail <small class="site-version">v0.1</small></h1>
+  <img src="petitgmp.png" alt="" onerror="this.style.display='none'"><h1>Administration du portail <small class="site-version">v0.2</small></h1>
   <span class="status" id="status">Enregistré ✓</span>
   <button class="theme-toggle" id="themeToggle" aria-label="Thème clair ou sombre" title="Thème clair / sombre">🌙</button>
   <button class="btn ghost" id="bPreview">👁 Aperçu</button>
@@ -38,6 +38,13 @@
     <label for="sSub">Sous-titre (facultatif)</label><input type="text" id="sSub">
     <label class="chk" style="margin-top:12px"><input type="checkbox" id="sReq"> <span>Page verrouillée : rien n'est visible tant qu'aucun code valide n'est saisi</span></label>
 
+    <h2>Logo de la page</h2>
+    <div id="logoPrev" style="text-align:center;background:var(--bg);border:1px dashed var(--border);border-radius:10px;padding:10px;min-height:70px;display:flex;align-items:center;justify-content:center"><img id="logoImg" alt="" style="max-width:100%"></div>
+    <div style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="bLogo" style="flex:1">Changer</button><button class="btn" id="bLogoReset" style="flex:1" title="Revenir au logo GMP">Logo GMP</button></div>
+    <input type="file" id="fLogo" accept="image/*" hidden>
+    <label for="lSize">Taille : <span id="lSizeV"></span> px</label><input type="range" id="lSize" min="30" max="240" step="2" style="width:100%">
+    <label class="chk" style="margin-top:8px"><input type="checkbox" id="lHide"> <span>Masquer le logo</span></label>
+
     <h2>Mode d'emploi</h2>
     <p class="help">• <b>Glissez</b> les liens pour les déplacer ou les passer d'un groupe à l'autre.<br>
     • <b>Cliquez</b> sur un lien pour changer son adresse, son texte, son image.<br>
@@ -54,7 +61,11 @@
   <label for="pTitle">Titre</label><input type="text" id="pTitle">
   <label for="pUrl">Adresse du lien (https://…)</label><input type="text" id="pUrl" placeholder="https://gmpbordeaux.fr/…">
   <label for="pText">Texte de description</label><textarea id="pText"></textarea>
-  <label>Image</label>
+  <label>Icône <small style="font-weight:400;color:var(--muted)">(bibliothèque)</small></label>
+  <input type="text" id="iconSearch" placeholder="Rechercher une icône…">
+  <div id="iconGrid"></div>
+  <div id="iconName"></div>
+  <label>Image <small style="font-weight:400;color:var(--muted)">(à la place de l'icône)</small></label>
   <div id="imgDrop"><div id="imgPrev"></div><span id="imgHint">Cliquez ou déposez une image ici</span></div>
   <input type="file" id="fImg" accept="image/*" hidden>
   <input type="text" id="pImgUrl" placeholder="… ou collez l'adresse d'une image" style="margin-top:8px">
@@ -111,8 +122,9 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-<script src="config.js?v=0.1"></script>
-<script src="portail.js?v=0.1"></script>
+<script src="config.js?v=0.2"></script>
+<script src="icones.js?v=0.2"></script>
+<script src="portail.js?v=0.2"></script>
 <script>
 (function () {
   const P = window.Portail, esc = P.esc, $ = (s) => document.querySelector(s);
@@ -134,7 +146,7 @@
   function aCardHTML(c, g) {
     const img = P.safeImg(c.image);
     return `<div class="card acard${c.id === sel ? " sel" : ""}" data-cid="${c.id}" style="--gc:${P.okColor(g.color)}">
-      <div class="card-img">${img ? `<img src="${esc(img)}" alt="">` : `<span class="card-initial">${esc((c.title || "?").trim().charAt(0).toUpperCase())}</span>`}</div>
+      <div class="card-img">${P.visualHTML(c)}</div>
       <h2>${esc(c.title || "Sans titre")}</h2>${c.text ? `<p>${esc(c.text)}</p>` : ""}</div>`;
   }
   function groupHTML(g) {
@@ -152,7 +164,6 @@
       <div class="g-sub"><span class="badge ${g.code ? "lock" : "free"}">${g.code ? "🔒 Protégé par un code" : "Accès libre"}</span>
         <label><input type="checkbox" data-f="autoOpen" ${g.autoOpen ? "checked" : ""}> Ouvrir directement le lien quand ce code est saisi (si un seul lien)</label></div>
       <div class="g-cards" data-gid="${g.id}">${g.cards.map((c) => aCardHTML(c, g)).join("")}</div>
-      <button class="addc" data-act="addc">＋ Ajouter un lien</button>
     </section>`;
   }
   function render() {
@@ -202,7 +213,6 @@
       const g = gOf(act);
       if (act.dataset.act === "gen") { const a = "abcdefghjkmnpqrstuvwxyz23456789"; g.code = Array.from({ length: 6 }, () => a[Math.floor(Math.random() * a.length)]).join(""); touch(); render(); }
       else if (act.dataset.act === "delg") { if (!g.cards.length || confirm("Supprimer le groupe « " + (g.name || "sans nom") + " » et ses " + g.cards.length + " lien(s) ?")) { cfg.groups = cfg.groups.filter((x) => x !== g); touch(); closePanel(); render(); } }
-      else if (act.dataset.act === "addc") { const c = newCard(); g.cards.push(c); touch(); render(); openPanel(c.id); }
       return;
     }
     const card = e.target.closest(".acard"); if (card) openPanel(card.dataset.cid);
@@ -221,11 +231,27 @@
     $("#imgHint").textContent = s ? "Cliquez ou déposez pour remplacer" : "Cliquez ou déposez une image ici";
     $("#pImgUrl").value = /^data:/.test(c.image) ? "" : c.image;
   }
+  // ----- bibliothèque d'icônes -----
+  function drawIcons() {
+    const f = findCard(sel); if (!f) return;
+    const q = $("#iconSearch").value.trim().toLowerCase(), g = f.g;
+    const list = P.icons().filter((i) => !q || (i.label + " " + i.tags).toLowerCase().includes(q));
+    $("#iconGrid").style.setProperty("--gc", P.okColor(g.color));
+    $("#iconGrid").innerHTML = '<button class="none' + (f.c.icon ? "" : " on") + '" data-icon="" title="Aucune icône (initiale)">aucune</button>'
+      + list.map((i) => '<button data-icon="' + i.id + '" class="' + (f.c.icon === i.id ? "on" : "") + '" title="' + esc(i.label) + '">' + P.iconSVG(i.id) + "</button>").join("");
+    const cur = P.icons().find((i) => i.id === f.c.icon);
+    $("#iconName").textContent = cur ? "Icône : " + cur.label : "Aucune icône : l'initiale du titre est utilisée.";
+  }
+  $("#iconSearch").addEventListener("input", drawIcons);
+  $("#iconGrid").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-icon]"), c = cur(); if (!b || !c) return;
+    c.icon = b.dataset.icon; touch(); render(); drawIcons();
+  });
   function openPanel(id) {
     const f = findCard(id); if (!f) return;
     sel = id; const c = f.c;
     $("#pTitle").value = c.title; $("#pUrl").value = c.url; $("#pText").value = c.text; $("#pBlank").checked = c.blank !== false;
-    refreshImg(c); $("#panel").classList.add("open");
+    refreshImg(c); $("#iconSearch").value = ""; drawIcons(); $("#panel").classList.add("open");
     document.querySelectorAll(".acard").forEach((el) => el.classList.toggle("sel", el.dataset.cid === id));
   }
   function closePanel() { sel = null; $("#panel").classList.remove("open"); document.querySelectorAll(".acard.sel").forEach((el) => el.classList.remove("sel")); }
@@ -296,7 +322,18 @@
   };
 
   // ---------- connexion & démarrage ----------
-  function fillSide() { $("#sTitle").value = cfg.title; $("#sSub").value = cfg.subtitle; $("#sReq").checked = cfg.requireCode; }
+  function showLogo() {
+    const l = cfg.logo; P.applyLogo($("#logoImg"), Object.assign({}, l, { hidden: false }));
+    $("#logoImg").style.height = Math.min(l.size, 110) + "px"; // aperçu réduit pour tenir dans la colonne
+    $("#logoImg").style.opacity = l.hidden ? ".25" : "1"; $("#lSize").value = l.size; $("#lSizeV").textContent = l.size; $("#lHide").checked = l.hidden;
+  }
+  $("#bLogo").onclick = () => $("#fLogo").click();
+  $("#fLogo").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; if (!f || !f.type.startsWith("image/")) return; cfg.logo.image = await P.imageFromFile(f, true); cfg.logo.hidden = false; touch(); showLogo(); };
+  $("#bLogoReset").onclick = () => { cfg.logo.image = ""; cfg.logo.hidden = false; touch(); showLogo(); };
+  $("#lSize").oninput = (e) => { cfg.logo.size = Number(e.target.value); touch(); showLogo(); };
+  $("#lHide").onchange = (e) => { cfg.logo.hidden = e.target.checked; touch(); showLogo(); };
+  function fillSide() {
+    showLogo(); $("#sTitle").value = cfg.title; $("#sSub").value = cfg.subtitle; $("#sReq").checked = cfg.requireCode; }
   function askLogin() { $("#login").hidden = false; $("#lEmail").focus(); }
   $("#loginForm").onsubmit = async (e) => {
     e.preventDefault(); $("#lErr").textContent = "";

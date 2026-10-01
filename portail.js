@@ -22,7 +22,7 @@
   }
 
   function defaultConfig() {
-    return { version: 1, title: "Nos applications", subtitle: "", requireCode: false,
+    return { version: 1, title: "Nos applications", subtitle: "", requireCode: false, logo: { image: "", size: 76, hidden: false },
       groups: [{ id: uid(), name: "Accès libre", code: "", color: "#12284c", autoOpen: false, active: true, cards: [] }] };
   }
   function normalizeConfig(c) {
@@ -33,12 +33,13 @@
       title: c.title || d.title,
       subtitle: c.subtitle || "",
       requireCode: !!c.requireCode,
+      logo: { image: String((c.logo && c.logo.image) || ""), size: Math.min(240, Math.max(30, Number(c.logo && c.logo.size) || 76)), hidden: !!(c.logo && c.logo.hidden) },
       groups: (Array.isArray(c.groups) ? c.groups : []).map((g) => ({
         id: g.id || uid(), name: g.name || "", code: String(g.code || "").replace(/\|/g, ""),
         color: okColor(g.color), autoOpen: !!g.autoOpen, active: g.active !== false,
         cards: (Array.isArray(g.cards) ? g.cards : []).map((k) => ({
           id: k.id || uid(), title: k.title || "", url: k.url || "", text: k.text || "",
-          image: k.image || "", blank: k.blank !== false })),
+          image: k.image || "", icon: String(k.icon || ""), blank: k.blank !== false })),
       })),
     };
   }
@@ -56,7 +57,7 @@
       else if (set.includes(gc)) { out.viaCode = gc; groups.push(out); if (!valid.includes(gc)) valid.push(gc); }
     }
     if (cfg.requireCode && !valid.length) groups = [];
-    return { title: cfg.title, subtitle: cfg.subtitle, requireCode: !!cfg.requireCode, groups, valid };
+    return { title: cfg.title, subtitle: cfg.subtitle, requireCode: !!cfg.requireCode, logo: cfg.logo, groups, valid };
   }
   const getDemo = () => { try { return normalizeConfig(JSON.parse(localStorage.getItem(DEMO_KEY))); } catch (e) { return defaultConfig(); } };
   const setDemo = (c) => localStorage.setItem(DEMO_KEY, JSON.stringify(c));
@@ -131,7 +132,7 @@
   }
 
   // ---- Image : redimensionnée (max 420 px) et stockée dans la config ----
-  function imageFromFile(file) {
+  function imageFromFile(file, isLogo) {
     return new Promise((resolve, reject) => {
       const fr = new FileReader();
       fr.onerror = reject;
@@ -139,12 +140,12 @@
         const im = new Image();
         im.onerror = reject;
         im.onload = () => {
-          const k = Math.min(1, 420 / Math.max(im.width, im.height));
+          let k = Math.min(1, (isLogo ? 600 : 420) / Math.max(im.width, im.height));
           const cv = document.createElement("canvas");
-          cv.width = Math.max(1, Math.round(im.width * k)); cv.height = Math.max(1, Math.round(im.height * k));
-          cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
-          let out = cv.toDataURL("image/png");
-          if (out.length > 160000) out = cv.toDataURL("image/jpeg", 0.82);
+          const draw = () => { cv.width = Math.max(1, Math.round(im.width * k)); cv.height = Math.max(1, Math.round(im.height * k)); cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height); return cv.toDataURL("image/png"); };
+          let out = draw();
+          if (isLogo) { while (out.length > 250000 && k > 0.1) { k *= 0.75; out = draw(); } }
+          else if (out.length > 160000) out = cv.toDataURL("image/jpeg", 0.82);
           resolve(out);
         };
         im.src = fr.result;
@@ -153,12 +154,34 @@
     });
   }
 
+  // ---- Logo de la page : image choisie par l'admin (sinon logo GMP), taille réglable ----
+  function applyLogo(img, logo) {
+    logo = logo || {};
+    img.hidden = !!logo.hidden;
+    img.src = safeImg(logo.image) || "petitgmp.png";
+    img.style.maxHeight = "none";
+    img.style.maxWidth = "100%";
+    img.style.objectFit = "contain";
+    img.style.height = (Math.min(240, Math.max(30, Number(logo.size) || 76))) + "px";
+  }
+
+  // ---- Icônes (bibliothèque : icones.js) ----
+  const icons = () => window.PORTAIL_ICONS || [];
+  const iconSVG = (id, cls) => {
+    const ic = icons().find((i) => i.id === id);
+    return ic ? `<svg class="${cls || "pic"}" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ic.svg}</svg>` : "";
+  };
+  // Visuel d'une carte : image (prioritaire) > icône > initiale
+  function visualHTML(c) {
+    const img = safeImg(c.image);
+    if (img) return `<img src="${esc(img)}" alt="" loading="lazy">`;
+    return iconSVG(c.icon) || `<span class="card-initial">${esc((c.title || "?").trim().charAt(0).toUpperCase())}</span>`;
+  }
+
   // ---- Rendu d'une carte (visiteur) ----
   function cardHTML(c, g, badge) {
-    const img = safeImg(c.image);
-    const ini = esc((c.title || "?").trim().charAt(0).toUpperCase());
     return `<a class="card" href="${esc(safeUrl(c.url))}"${c.blank === false ? "" : ' target="_blank" rel="noopener"'} style="--gc:${okColor(g.color)}">
-      <div class="card-img">${img ? `<img src="${esc(img)}" alt="">` : `<span class="card-initial">${ini}</span>`}</div>
+      <div class="card-img">${visualHTML(c)}</div>
       ${badge && g.name ? `<span class="badge">${esc(g.name)}</span>` : ""}
       <h2>${esc(c.title || "Sans titre")}</h2>${c.text ? `<p>${esc(c.text)}</p>` : ""}
       <span class="go">Accéder →</span></a>`;
@@ -184,5 +207,5 @@
   });
 
   window.Portail = { PB, uid, esc, norm, okColor, safeUrl, safeImg, defaultConfig, normalizeConfig,
-    view, login, changePassword, listAdmins, createAdmin, deleteAdmin, me, logout, load, save, imageFromFile, cardHTML, groupsHTML, hasToken: () => !!token() };
+    applyLogo, icons, iconSVG, visualHTML, view, login, changePassword, listAdmins, createAdmin, deleteAdmin, me, logout, load, save, imageFromFile, cardHTML, groupsHTML, hasToken: () => !!token() };
 })();

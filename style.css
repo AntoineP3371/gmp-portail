@@ -163,3 +163,15 @@ aside.side .help { font-size: .8rem; color: var(--muted); line-height: 1.5; marg
 
 .site-version { font-size: .7rem; font-weight: 600; color: var(--muted); opacity: .6; }
 footer.v .site-version { margin-top: 6px; }
+
+/* Icônes de la bibliothèque */
+.card-img svg.pic { width: 76px; height: 76px; color: var(--gc); }
+.acard .card-img svg.pic { width: 56px; height: 56px; }
+#iconSearch { margin-bottom: 8px; }
+#iconGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; max-height: 210px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+#iconGrid button { aspect-ratio: 1; border: 1px solid transparent; border-radius: 9px; background: var(--surface); padding: 6px; display: flex; align-items: center; justify-content: center; color: var(--gc, var(--primary)); }
+#iconGrid button svg { width: 100%; height: 100%; }
+#iconGrid button:hover { border-color: var(--primary); background: var(--primary-light); }
+#iconGrid button.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+#iconGrid button.none { color: var(--muted); font-size: .7rem; font-weight: 700; }
+#iconName { font-size: .8rem; color: var(--muted); margin-top: 6px; }
