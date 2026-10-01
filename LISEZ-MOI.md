@@ -14,12 +14,13 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `admin.html` : tout marche, mai
 1. **Nouvelle instance PocketBase** sur le Raspberry Pi (processus, port et dossier séparés des autres), avec un nouveau super-utilisateur.
 2. Copier dans le dossier de cette instance :
    - `pb/pb_hooks/portail.pb.js` → dans `pb_hooks/`
-   - `pb/pb_migrations/1790000000_portail_config.js` → dans `pb_migrations/`
+   - `pb/pb_migrations/1790000000_portail_config.js` et `pb/pb_migrations/1790000001_portail_admins.js` → dans `pb_migrations/`
 3. **Redémarrer** PocketBase : la collection `portail_config` est créée toute seule.
 4. Ajouter une route **Cloudflare Tunnel** vers cette instance (ex. `api_portail.gmpbordeaux.fr`). Test : `https://api_portail.gmpbordeaux.fr/api/health` doit répondre.
 5. Dans `config.js`, mettre `window.PB_URL = "https://api_portail.gmpbordeaux.fr";`
 6. Publier le dossier (sans `pb/` ni ce fichier si vous voulez) sur un dépôt GitHub + **Settings → Pages**.
-7. Ouvrir `.../admin.html`, se connecter avec l'e-mail/mot de passe du super-utilisateur PocketBase.
+7. Créer le premier administrateur du portail : tableau de bord PocketBase (`.../_/`, connexion super-utilisateur) → collection `portail_admins` → **New record** (e-mail, mot de passe, confirmation). Le super-utilisateur PocketBase et les administrateurs du portail sont deux types de comptes distincts.
+8. Ouvrir `.../admin.html` et se connecter avec ce compte. Les autres administrateurs s'ajoutent ensuite depuis le bouton **👥 Administrateurs**.
 
 ## Utiliser l'administration
 

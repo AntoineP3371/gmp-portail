@@ -70,44 +70,62 @@
     return r.json();
   }
 
-  // ---- API admin ----
+  // ---- API admin (comptes de la collection "portail_admins", distincts du super-utilisateur PocketBase) ----
+  const AUTH = "/api/collections/portail_admins";
   let recId = null;
   const token = () => sessionStorage.getItem(TOKEN_KEY) || "";
+  const authError = () => { const e = new Error("auth"); e.auth = true; return e; };
   async function pb(path, opts) {
     opts = opts || {};
     const r = await fetch(PB + path, Object.assign({}, opts, { headers: { "Content-Type": "application/json", Authorization: token() } }));
-    if (r.status === 401 || r.status === 403) { const e = new Error("auth"); e.auth = true; throw e; }
+    if (r.status === 401) throw authError();
     if (!r.ok) throw new Error("HTTP " + r.status + " " + (await r.text()));
-    return r.json();
+    return r.status === 204 ? null : r.json();
   }
-  async function login(email, pw) {
-    const r = await fetch(PB + "/api/collections/_superusers/auth-with-password", { method: "POST",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identity: email, password: pw }) });
-    if (!r.ok) throw new Error("Identifiants incorrects");
-    const a = await r.json();
+  function remember(a, email) {
     sessionStorage.setItem(TOKEN_KEY, a.token);
     sessionStorage.setItem(ME_KEY, JSON.stringify({ id: a.record.id, email: a.record.email || email }));
   }
+  async function login(email, pw) {
+    const r = await fetch(PB + AUTH + "/auth-with-password", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identity: email, password: pw }) });
+    if (!r.ok) throw new Error("Identifiants incorrects");
+    remember(await r.json(), email);
+  }
+  // Vérifie que la session est valide (sinon une lecture refusée par les règles renverrait une liste vide)
+  async function ensureAuth() {
+    if (!token()) throw authError();
+    const m = JSON.parse(sessionStorage.getItem(ME_KEY) || "{}");
+    remember(await pb(AUTH + "/auth-refresh", { method: "POST" }), m.email);
+  }
+  const me = () => JSON.parse(sessionStorage.getItem(ME_KEY) || "null");
   // Change le mot de passe du compte connecté, puis se reconnecte (l'ancien jeton devient invalide)
   async function changePassword(oldPw, newPw) {
-    const me = JSON.parse(sessionStorage.getItem(ME_KEY) || "null");
-    if (!me) { const e = new Error("auth"); e.auth = true; throw e; }
-    const r = await fetch(PB + "/api/collections/_superusers/records/" + me.id, { method: "PATCH",
+    const m = me(); if (!m) throw authError();
+    const r = await fetch(PB + AUTH + "/records/" + m.id, { method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: token() },
       body: JSON.stringify({ oldPassword: oldPw, password: newPw, passwordConfirm: newPw }) });
-    if (r.status === 401 || r.status === 403) { const e = new Error("auth"); e.auth = true; throw e; }
+    if (r.status === 401) throw authError();
     if (!r.ok) throw new Error("Ancien mot de passe incorrect, ou nouveau mot de passe refusé (8 caractères minimum).");
-    await login(me.email, newPw);
+    await login(m.email, newPw);
   }
+  const listAdmins = async () => (await pb(AUTH + "/records?perPage=100&sort=created")).items;
+  async function createAdmin(email, pw) {
+    try { await pb(AUTH + "/records", { method: "POST", body: JSON.stringify({ email, emailVisibility: true, password: pw, passwordConfirm: pw }) }); }
+    catch (e) { if (e.auth) throw e; throw new Error("Création refusée : e-mail invalide ou déjà utilisé, ou mot de passe trop court (8 caractères minimum)."); }
+  }
+  const deleteAdmin = (id) => pb(AUTH + "/records/" + id, { method: "DELETE" });
   const logout = () => { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(ME_KEY); };
   async function load() {
     if (!PB) return getDemo();
+    await ensureAuth();
     const j = await pb("/api/collections/portail_config/records?perPage=1&filter=" + encodeURIComponent('key="main"'));
     if (j.items.length) { recId = j.items[0].id; return normalizeConfig(j.items[0].data); }
     return defaultConfig();
   }
   async function save(cfg) {
     if (!PB) return setDemo(cfg);
+    await ensureAuth();
     if (recId) await pb("/api/collections/portail_config/records/" + recId, { method: "PATCH", body: JSON.stringify({ data: cfg }) });
     else recId = (await pb("/api/collections/portail_config/records", { method: "POST", body: JSON.stringify({ key: "main", data: cfg }) })).id;
   }
@@ -166,5 +184,5 @@
   });
 
   window.Portail = { PB, uid, esc, norm, okColor, safeUrl, safeImg, defaultConfig, normalizeConfig,
-    view, login, changePassword, logout, load, save, imageFromFile, cardHTML, groupsHTML, hasToken: () => !!token() };
+    view, login, changePassword, listAdmins, createAdmin, deleteAdmin, me, logout, load, save, imageFromFile, cardHTML, groupsHTML, hasToken: () => !!token() };
 })();

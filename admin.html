@@ -19,6 +19,7 @@
   <button class="btn ghost" id="bExport" title="Télécharger une copie de sauvegarde">⬇ Sauvegarde</button>
   <button class="btn ghost" id="bImport" title="Restaurer une sauvegarde">⬆ Restaurer</button>
   <a class="btn ghost" href="index.html" target="_blank">↗ Voir la page</a>
+  <button class="btn ghost" id="bAdmins" hidden>👥 Administrateurs</button>
   <button class="btn ghost" id="bPwd" hidden>🔑 Mot de passe</button>
   <button class="btn ghost" id="bLogout" hidden>Déconnexion</button>
   <button class="btn primary" id="bSave" disabled>💾 Enregistrer</button>
@@ -70,11 +71,26 @@
 <div class="modal" id="login" hidden>
   <form class="box" id="loginForm">
     <h2>🔐 Connexion administrateur</h2>
-    <input type="text" id="lEmail" placeholder="E-mail PocketBase" autocomplete="username">
+    <input type="text" id="lEmail" placeholder="E-mail" autocomplete="username">
     <input type="password" id="lPass" placeholder="Mot de passe" autocomplete="current-password">
     <div class="err" id="lErr"></div>
     <button class="btn primary" type="submit" style="width:100%">Se connecter</button>
   </form>
+</div>
+
+<!-- Administrateurs du portail -->
+<div class="modal" id="admModal" hidden>
+  <div class="box" style="max-width:460px">
+    <h2>👥 Administrateurs du portail</h2>
+    <div id="admList" style="margin-bottom:14px"></div>
+    <form id="admForm">
+      <div style="font-size:.85rem;font-weight:700;margin-bottom:6px">Ajouter un administrateur</div>
+      <input type="text" id="aEmail" placeholder="E-mail" autocomplete="off">
+      <input type="password" id="aPass" placeholder="Mot de passe provisoire (8 caractères min.)" autocomplete="new-password">
+      <div class="err" id="aErr"></div>
+      <div style="display:flex;gap:8px"><button class="btn" type="button" id="aClose" style="flex:1">Fermer</button><button class="btn primary" type="submit" style="flex:1">Ajouter</button></div>
+    </form>
+  </div>
 </div>
 
 <!-- Changement de mot de passe -->
@@ -296,13 +312,36 @@
     try { await P.changePassword($("#pOld").value, $("#pNew").value); err.style.color = "var(--green)"; err.textContent = "Mot de passe modifié ✓"; setTimeout(() => ($("#pwdModal").hidden = true), 1200); }
     catch (x) { if (x.auth) { $("#pwdModal").hidden = true; P.logout(); askLogin(); } else err.textContent = x.message; }
   };
+  async function drawAdmins() {
+    const box = $("#admList"), mine = (P.me() || {}).id;
+    try {
+      const l = await P.listAdmins();
+      box.innerHTML = l.map((a) => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <span style="flex:1;word-break:break-all">${esc(a.email || "(e-mail masqué)")}${a.id === mine ? ' <small style="color:var(--green);font-weight:700">· vous</small>' : ""}</span>
+        ${a.id === mine ? "" : `<button class="btn danger" data-del="${a.id}" data-mail="${esc(a.email)}">Supprimer</button>`}</div>`).join("");
+    } catch (e) { if (e.auth) { $("#admModal").hidden = true; P.logout(); askLogin(); } else box.textContent = "Liste indisponible : " + e.message; }
+  }
+  $("#bAdmins").onclick = () => { $("#admForm").reset(); $("#aErr").textContent = ""; $("#admModal").hidden = false; drawAdmins(); };
+  $("#aClose").onclick = () => ($("#admModal").hidden = true);
+  $("#admList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-del]"); if (!b || !confirm("Supprimer l'administrateur " + b.dataset.mail + " ?")) return;
+    try { await P.deleteAdmin(b.dataset.del); } catch (x) { alert("Suppression impossible : " + x.message); }
+    drawAdmins();
+  });
+  $("#admForm").onsubmit = async (e) => {
+    e.preventDefault(); const err = $("#aErr"); err.textContent = ""; const mail = $("#aEmail").value.trim(), pw = $("#aPass").value;
+    if (!/^\S+@\S+\.\S+$/.test(mail)) { err.textContent = "E-mail invalide."; return; }
+    if (pw.length < 8) { err.textContent = "Le mot de passe doit faire 8 caractères minimum."; return; }
+    try { await P.createAdmin(mail, pw); $("#admForm").reset(); drawAdmins(); }
+    catch (x) { if (x.auth) { $("#admModal").hidden = true; P.logout(); askLogin(); } else err.textContent = x.message; }
+  };
   $("#bLogout").onclick = () => { P.logout(); location.reload(); };
   async function start() {
     try { cfg = await P.load(); }
     catch (e) { if (e.auth) { P.logout(); askLogin(); } else alert("Chargement impossible : " + e.message); return; }
     fillSide(); render(); setDirty(false);
   }
-  $("#demo").hidden = !!P.PB; $("#bLogout").hidden = $("#bPwd").hidden = !P.PB;
+  $("#demo").hidden = !!P.PB; $("#bLogout").hidden = $("#bPwd").hidden = $("#bAdmins").hidden = !P.PB;
   if (!P.PB || P.hasToken()) start(); else askLogin();
 })();
 </script>
