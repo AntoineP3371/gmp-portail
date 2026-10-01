@@ -3,12 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" type="image/png" href="favicon.png">
 <title>Portail des applications</title>
-<link href="https://fonts.googleapis.com/css?family=Raleway:400,500,600,700|Montserrat:600,700,800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="top"><h1 id="title">Portail</h1><p id="subtitle" hidden></p></header>
+<button id="themeToggle" class="theme-toggle fixed" aria-label="Basculer le thème clair ou sombre" title="Thème clair / sombre">🌙</button>
+<div class="brand">
+  <img src="petitgmp.png" alt="GMP Bordeaux" onerror="this.style.display='none'">
+  <h1 id="title">Portail</h1><p id="subtitle" hidden></p>
+</div>
 
 <div class="codebar">
   <span class="unlocked" id="unlocked" hidden></span>
@@ -21,7 +26,7 @@
 </div>
 
 <main class="v" id="main"><div class="empty">Chargement…</div></main>
-<footer class="v"><a href="admin.html">Administration</a></footer>
+<footer class="v">Atelier GMP — IUT Bordeaux · <a href="admin.html">Administration</a></footer>
 
 <script src="config.js"></script>
 <script src="portail.js"></script>

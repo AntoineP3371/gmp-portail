@@ -4,15 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" type="image/png" href="favicon.png">
 <title>Administration du portail</title>
-<link href="https://fonts.googleapis.com/css?family=Raleway:400,500,600,700|Montserrat:600,700,800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="admin">
 
 <div class="bar">
-  <h1>Administration du portail</h1>
+  <img src="petitgmp.png" alt="" onerror="this.style.display='none'"><h1>Administration du portail</h1>
   <span class="status" id="status">Enregistré ✓</span>
+  <button class="theme-toggle" id="themeToggle" aria-label="Thème clair ou sombre" title="Thème clair / sombre">🌙</button>
   <button class="btn ghost" id="bPreview">👁 Aperçu</button>
   <button class="btn ghost" id="bExport" title="Télécharger une copie de sauvegarde">⬇ Sauvegarde</button>
   <button class="btn ghost" id="bImport" title="Restaurer une sauvegarde">⬆ Restaurer</button>
@@ -26,7 +28,7 @@
 <div class="layout">
   <aside class="side">
     <h2>Ajouter</h2>
-    <div id="palette"><div class="card"><span>＋ Nouveau lien<br><small style="font-weight:500">glissez-le dans un groupe</small></span></div></div>
+    <div id="palette"><div class="card"><span style="font-size:1.1rem">＋ Nouveau lien</span><small style="font-weight:500">glissez-le dans un groupe</small></div></div>
     <button class="btn primary newgroup" id="bNewGroup" style="margin-top:10px;width:100%">＋ Nouveau groupe</button>
 
     <h2>La page</h2>
@@ -104,7 +106,7 @@
     const img = P.safeImg(c.image);
     return `<div class="card acard${c.id === sel ? " sel" : ""}" data-cid="${c.id}" style="--gc:${P.okColor(g.color)}">
       <div class="card-img">${img ? `<img src="${esc(img)}" alt="">` : `<span class="card-initial">${esc((c.title || "?").trim().charAt(0).toUpperCase())}</span>`}</div>
-      <div class="card-body"><h3>${esc(c.title || "Sans titre")}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ""}</div></div>`;
+      <h2>${esc(c.title || "Sans titre")}</h2>${c.text ? `<p>${esc(c.text)}</p>` : ""}</div>`;
   }
   function groupHTML(g) {
     return `<section class="g${g.active === false ? " off" : ""}" data-gid="${g.id}" style="--gc:${P.okColor(g.color)}">

@@ -122,19 +122,34 @@
   }
 
   // ---- Rendu d'une carte (visiteur) ----
-  function cardHTML(c, g) {
+  function cardHTML(c, g, badge) {
     const img = safeImg(c.image);
     const ini = esc((c.title || "?").trim().charAt(0).toUpperCase());
     return `<a class="card" href="${esc(safeUrl(c.url))}"${c.blank === false ? "" : ' target="_blank" rel="noopener"'} style="--gc:${okColor(g.color)}">
-      <div class="card-img">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : `<span class="card-initial">${ini}</span>`}</div>
-      <div class="card-body"><h3>${esc(c.title || "Sans titre")}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ""}</div></a>`;
+      <div class="card-img">${img ? `<img src="${esc(img)}" alt="">` : `<span class="card-initial">${ini}</span>`}</div>
+      ${badge && g.name ? `<span class="badge">${esc(g.name)}</span>` : ""}
+      <h2>${esc(c.title || "Sans titre")}</h2>${c.text ? `<p>${esc(c.text)}</p>` : ""}
+      <span class="go">Accéder →</span></a>`;
   }
   function groupsHTML(groups) {
     const multi = groups.length > 1;
     return groups.map((g) => `<section class="vgroup" style="--gc:${okColor(g.color)}">
       ${multi && g.name ? `<h2 class="vgroup-title">${esc(g.name)}</h2>` : ""}
-      <div class="grid">${g.cards.map((c) => cardHTML(c, g)).join("")}</div></section>`).join("");
+      <div class="grid">${g.cards.map((c) => cardHTML(c, g, !multi)).join("")}</div></section>`).join("");
   }
+
+  // Thème clair / sombre (même principe que l'Atelier GMP)
+  function themeIcon() { const b = document.getElementById("themeToggle"); if (b) b.textContent = document.documentElement.getAttribute("data-theme") === "dark" ? "☀️" : "🌙"; }
+  document.addEventListener("DOMContentLoaded", () => {
+    themeIcon();
+    const b = document.getElementById("themeToggle");
+    if (b) b.addEventListener("click", () => {
+      const n = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", n);
+      try { localStorage.setItem("theme", n); } catch (e) {}
+      themeIcon();
+    });
+  });
 
   window.Portail = { PB, uid, esc, norm, okColor, safeUrl, safeImg, defaultConfig, normalizeConfig,
     view, login, logout, load, save, imageFromFile, cardHTML, groupsHTML, hasToken: () => !!token() };
