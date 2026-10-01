@@ -5,6 +5,7 @@
   const PB = (window.PB_URL || "").replace(/\/+$/, "");
   const DEMO_KEY = "portail_demo_config_v1";
   const TOKEN_KEY = "portail_admin_token";
+  const ME_KEY = "portail_admin_me";
   const uid = () => Math.random().toString(36).slice(2, 9);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const norm = (s) => String(s || "").trim().toLowerCase();
@@ -83,9 +84,22 @@
     const r = await fetch(PB + "/api/collections/_superusers/auth-with-password", { method: "POST",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identity: email, password: pw }) });
     if (!r.ok) throw new Error("Identifiants incorrects");
-    sessionStorage.setItem(TOKEN_KEY, (await r.json()).token);
+    const a = await r.json();
+    sessionStorage.setItem(TOKEN_KEY, a.token);
+    sessionStorage.setItem(ME_KEY, JSON.stringify({ id: a.record.id, email: a.record.email || email }));
   }
-  const logout = () => sessionStorage.removeItem(TOKEN_KEY);
+  // Change le mot de passe du compte connecté, puis se reconnecte (l'ancien jeton devient invalide)
+  async function changePassword(oldPw, newPw) {
+    const me = JSON.parse(sessionStorage.getItem(ME_KEY) || "null");
+    if (!me) { const e = new Error("auth"); e.auth = true; throw e; }
+    const r = await fetch(PB + "/api/collections/_superusers/records/" + me.id, { method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: token() },
+      body: JSON.stringify({ oldPassword: oldPw, password: newPw, passwordConfirm: newPw }) });
+    if (r.status === 401 || r.status === 403) { const e = new Error("auth"); e.auth = true; throw e; }
+    if (!r.ok) throw new Error("Ancien mot de passe incorrect, ou nouveau mot de passe refusé (8 caractères minimum).");
+    await login(me.email, newPw);
+  }
+  const logout = () => { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(ME_KEY); };
   async function load() {
     if (!PB) return getDemo();
     const j = await pb("/api/collections/portail_config/records?perPage=1&filter=" + encodeURIComponent('key="main"'));
@@ -152,5 +166,5 @@
   });
 
   window.Portail = { PB, uid, esc, norm, okColor, safeUrl, safeImg, defaultConfig, normalizeConfig,
-    view, login, logout, load, save, imageFromFile, cardHTML, groupsHTML, hasToken: () => !!token() };
+    view, login, changePassword, logout, load, save, imageFromFile, cardHTML, groupsHTML, hasToken: () => !!token() };
 })();

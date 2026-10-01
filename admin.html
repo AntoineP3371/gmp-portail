@@ -19,6 +19,7 @@
   <button class="btn ghost" id="bExport" title="Télécharger une copie de sauvegarde">⬇ Sauvegarde</button>
   <button class="btn ghost" id="bImport" title="Restaurer une sauvegarde">⬆ Restaurer</button>
   <a class="btn ghost" href="index.html" target="_blank">↗ Voir la page</a>
+  <button class="btn ghost" id="bPwd" hidden>🔑 Mot de passe</button>
   <button class="btn ghost" id="bLogout" hidden>Déconnexion</button>
   <button class="btn primary" id="bSave" disabled>💾 Enregistrer</button>
   <input type="file" id="fImport" accept=".json,application/json" hidden>
@@ -73,6 +74,18 @@
     <input type="password" id="lPass" placeholder="Mot de passe" autocomplete="current-password">
     <div class="err" id="lErr"></div>
     <button class="btn primary" type="submit" style="width:100%">Se connecter</button>
+  </form>
+</div>
+
+<!-- Changement de mot de passe -->
+<div class="modal" id="pwdModal" hidden>
+  <form class="box" id="pwdForm">
+    <h2>🔑 Changer mon mot de passe</h2>
+    <input type="password" id="pOld" placeholder="Mot de passe actuel" autocomplete="current-password">
+    <input type="password" id="pNew" placeholder="Nouveau mot de passe (8 caractères min.)" autocomplete="new-password">
+    <input type="password" id="pNew2" placeholder="Confirmer le nouveau mot de passe" autocomplete="new-password">
+    <div class="err" id="pErr"></div>
+    <div style="display:flex;gap:8px"><button class="btn" type="button" id="pCancel" style="flex:1">Annuler</button><button class="btn primary" type="submit" style="flex:1">Changer</button></div>
   </form>
 </div>
 
@@ -274,13 +287,22 @@
     try { await P.login($("#lEmail").value.trim(), $("#lPass").value); $("#lPass").value = ""; $("#login").hidden = true; if (!cfg) start(); else doSave(); }
     catch (err) { $("#lErr").textContent = err.message; }
   };
+  $("#bPwd").onclick = () => { $("#pwdForm").reset(); $("#pErr").textContent = ""; $("#pwdModal").hidden = false; $("#pOld").focus(); };
+  $("#pCancel").onclick = () => ($("#pwdModal").hidden = true);
+  $("#pwdForm").onsubmit = async (e) => {
+    e.preventDefault(); const err = $("#pErr"); err.style.color = ""; err.textContent = "";
+    if ($("#pNew").value.length < 8) { err.textContent = "Le nouveau mot de passe doit faire 8 caractères minimum."; return; }
+    if ($("#pNew").value !== $("#pNew2").value) { err.textContent = "Les deux nouveaux mots de passe sont différents."; return; }
+    try { await P.changePassword($("#pOld").value, $("#pNew").value); err.style.color = "var(--green)"; err.textContent = "Mot de passe modifié ✓"; setTimeout(() => ($("#pwdModal").hidden = true), 1200); }
+    catch (x) { if (x.auth) { $("#pwdModal").hidden = true; P.logout(); askLogin(); } else err.textContent = x.message; }
+  };
   $("#bLogout").onclick = () => { P.logout(); location.reload(); };
   async function start() {
     try { cfg = await P.load(); }
     catch (e) { if (e.auth) { P.logout(); askLogin(); } else alert("Chargement impossible : " + e.message); return; }
     fillSide(); render(); setDirty(false);
   }
-  $("#demo").hidden = !!P.PB; $("#bLogout").hidden = !P.PB;
+  $("#demo").hidden = !!P.PB; $("#bLogout").hidden = $("#bPwd").hidden = !P.PB;
   if (!P.PB || P.hasToken()) start(); else askLogin();
 })();
 </script>
